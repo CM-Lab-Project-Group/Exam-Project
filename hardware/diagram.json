@@ -8,8 +8,29 @@
       "top": 230.4,
       "left": 393.6,
       "attrs": { "env": "micropython-20231005-v1.21.0" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "recLed",
+      "top": 140,
+      "left": 250,
+      "attrs": { "color": "red", "label": "REC" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "recRes",
+      "top": 240,
+      "left": 230,
+      "rotate": 90,
+      "attrs": { "value": "220" }
     }
   ],
-  "connections": [],
+  "connections": [
+    [ "esp1:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp1:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp1:13", "recRes:2", "green", [] ],
+    [ "recRes:1", "recLed:A", "green", [] ],
+    [ "recLed:C", "esp1:GND.1", "black", [] ]
+  ],
   "dependencies": {}
 }
