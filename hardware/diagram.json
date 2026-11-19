@@ -8,8 +8,16 @@
       "top": 230.4,
       "left": 393.6,
       "attrs": { "env": "micropython-20231005-v1.21.0" }
-    }
+    },
+    { "type": "wokwi-buzzer", 
+      "id": "buzzer1", 
+      "top": 120, 
+      "left": 600, 
+      "attrs": { "volume": "0.2" } }
   ],
-  "connections": [],
+  "connections": [
+      [ "esp1:25", "buzzer1:2", "orange", [] ],
+      [ "buzzer1:1", "esp1:GND.2", "black", [] ]
+  ],
   "dependencies": {}
 }
