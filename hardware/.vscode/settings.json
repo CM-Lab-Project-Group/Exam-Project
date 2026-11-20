@@ -4,5 +4,6 @@
     "micropython-lsp.enable": true,
     "python.languageServer": "None",
     "python.analysis.typeCheckingMode": "off",
-    "flake8.enabled": false
+    "flake8.enabled": false,
+    "mypy.configFile": "../mypy.ini"
 }
