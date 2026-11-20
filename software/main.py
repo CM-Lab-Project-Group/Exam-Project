@@ -2,7 +2,7 @@ import serial
 import asyncio
 import json
 
-def handle_receive(s: serial.Serial, text: str):
+def handle_receive(text: str):
     try:
         payload = json.loads(text)
     except ValueError as e:
@@ -22,6 +22,9 @@ async def read_serial(s: serial.Serial):
         handle_line(s, line)
         await asyncio.sleep(.01)
 
+async def write_serial(s: serial.Serial, payload: dict):
+    data = json.dumps(payload) + "\n"
+    s.write(data.encode())
 
 async def main():
     with serial.serial_for_url("rfc2217://localhost:4000") as s:
