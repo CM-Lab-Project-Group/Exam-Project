@@ -1,13 +1,14 @@
 import serial
+import inspect
 import json
 import asyncio
 from typing import Any, Callable, Awaitable
 
-Handler = Callable[[dict], None]
+Handler = Callable[[dict[str, Any]], None | Awaitable[None]]
 __HANDLERS: dict[str, Handler] = {}
 
 # The internal stack to queue packages that need to be sent to the esp32
-__sendoff_stack: list[bytes] = []
+__send_queue: asyncio.Queue[bytes] = asyncio.Queue()
 
 
 def register_handler(packet_type: str, handler: Handler):
@@ -15,7 +16,7 @@ def register_handler(packet_type: str, handler: Handler):
     __HANDLERS[packet_type] = handler
 
 
-def _handle_receive(text: str):
+async def _handle_receive(text: str):
     try:
         payload: dict[str, Any] = json.loads(text)
     except ValueError as e:
@@ -30,21 +31,23 @@ def _handle_receive(text: str):
     if not packet_type or not packet_id:
         return
 
-    _call_correct_handler(packet_type, payload)
+    await _call_correct_handler(packet_type, payload)
 
 
-def _call_correct_handler(packet_type: str, payload: dict[str, Any]):
+async def _call_correct_handler(packet_type: str, payload: dict[str, Any]):
     handler = __HANDLERS.get(packet_type, None)
     if not handler:
         return
-    return handler(payload)
+    result = handler(payload)
+    if inspect.isawaitable(result):
+        await result
 
 
-def _handle_line(line: bytes):
+async def _handle_line(line: bytes):
     if not line: return
-    text = line.decode().strip()
+    text = line.decode(errors="replace").strip()
     if not text: return
-    _handle_receive(text)
+    await _handle_receive(text)
 
 
 def write_serial(payload: dict):
@@ -55,24 +58,39 @@ def write_serial(payload: dict):
     """
     data = json.dumps(payload)
     sendoff = data + "\n"
-    print(f"Adding {data} to the stack")
-    __sendoff_stack.append(sendoff.encode())
+    print(f"Queueing {data}")
+    __send_queue.put_nowait(sendoff.encode())
 
 
-def _read_serial(s: serial.Serial):
-    line = s.readline()
-    print(f"Received: ${repr(line)}")
-    _handle_line(line)
+async def _read_loop(s: serial.Serial):
+    while True:
+        line = await asyncio.to_thread(s.readline)
+        if not line:
+            continue
+        print(f"Received: {line!r}")
+        await _handle_line(line)
 
 
-def _dump_waiting_packets(s: serial.Serial):
-    while len(__sendoff_stack) > 0:
-        packet = __sendoff_stack.pop()
-        print(f"Sending: {packet.decode(encoding="replace")}")
-        s.write(packet)
+async def _write_loop(s: serial.Serial):
+    while True:
+        packet = await __send_queue.get()
+        print(f"Sending: {packet.decode(errors="replace").strip()}")
+        await asyncio.to_thread(s.write, packet)
+        __send_queue.task_done()
 
-def poll_serial(serial_url: str = "rfc2217://localhost:4000"):
-    print("Polling serial...")
-    with serial.serial_for_url(url=serial_url) as s:
-        _read_serial(s)
-        _dump_waiting_packets(s)
+async def run_serial(serial_url: str = "rfc2217://localhost:4000"):
+    print(f"Connecting to {serial_url}")
+    s = await asyncio.to_thread(serial.serial_for_url, serial_url, timeout=.1)
+
+    read_task = asyncio.create_task(_read_loop(s))
+    write_task = asyncio.create_task(_write_loop(s))
+
+    try:
+        await asyncio.gather(read_task, write_task)
+    except asyncio.CancelledError:
+        pass
+    finally:
+        read_task.cancel()
+        write_task.cancel()
+        await asyncio.gather(read_task, write_task, return_exceptions=True)
+        await asyncio.to_thread(s.close)

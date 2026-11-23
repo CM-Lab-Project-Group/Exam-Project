@@ -14,6 +14,13 @@ if TYPE_CHECKING:
 
 __HANDLERS: dict[str, "Handler"] = {}
 
+def error_packet(error_message: str):
+    return json.dumps({
+        "packet_type": "error",
+        "error": error_message,
+        "packet_id": -10,
+    });
+
 
 async def listenForIncomingPackets():
     reader: StreamReader = asyncio.StreamReader(sys.stdin)
@@ -24,9 +31,7 @@ async def listenForIncomingPackets():
         packet_type = json_input.get("packet_type", None)
 
         if not packet_id or not packet_type:
-            print(json.dumps({
-                "error": "Invalid Packet (no packet_id or packet_type)"
-            }))
+            print(error_packet("Invalid Packet (no packet_id or packet_type)"))
             continue
 
         handler_result: dict | None = await __run_correct_handler(
@@ -35,9 +40,7 @@ async def listenForIncomingPackets():
         )
 
         if not handler_result:
-            print(json.dumps({
-                "error": "No handler result!"
-            }))
+            print(error_packet("No handler result!"))
             continue
 
         if not handler_result.get("packet_id", None) == None:  # <= This is to avoid overriding intenionally set packet_ids

@@ -2,6 +2,7 @@ from networking import register_handler
 
 
 async def __handle_heartbeat_requrest(data: dict) -> dict:
+    print("{ \"msg\": \"hearbeat\" }")
     return {
         "packet_type": "ack",
         "packet_id": data.get("packet_id", -1)

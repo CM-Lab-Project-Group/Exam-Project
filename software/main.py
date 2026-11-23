@@ -1,22 +1,21 @@
 import asyncio
-from serial_networking import poll_serial, write_serial, register_handler
+from serial_networking import run_serial, write_serial, register_handler
+from packet_handlers import error_handler, ack_handler
 
-async def serial_polling_async_loop(loop: asyncio.AbstractEventLoop):
-    while True: await loop.run_in_executor(None, poll_serial)
-
+async def serial_polling_async_loop():
+    await run_serial()
 
 async def main():
-    loop = asyncio.get_running_loop()
-
-    asyncio.create_task(serial_polling_async_loop(loop))
-
     payload = {
         "packet_type": "heartbeat"
     }
 
-    register_handler("ack", lambda b: print(b))
+    error_handler.register()
+    ack_handler.register()
 
     write_serial(payload)
+
+    await serial_polling_async_loop()
 
 if __name__ == "__main__":
     asyncio.run(main())
