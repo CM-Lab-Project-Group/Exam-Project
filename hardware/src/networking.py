@@ -1,11 +1,18 @@
 import json
 import sys
 import asyncio
-from asyncio.streams import StreamReader
-from typing import Callable, Awaitable
+from asyncio import StreamReader
 
-Handler = Callable[[dict], Awaitable[dict | None]]
-__HANDLERS: dict[str, Handler] = {}
+try:
+    from typing import TYPE_CHECKING
+except ImportError:
+    TYPE_CHECKING = False
+
+if TYPE_CHECKING:
+    from typing import Callable, Awaitable
+    Handler = Callable[[dict], Awaitable[dict | None]]
+
+__HANDLERS: dict[str, "Handler"] = {}
 
 
 async def listenForIncomingPackets():
@@ -28,6 +35,9 @@ async def listenForIncomingPackets():
         )
 
         if not handler_result:
+            print(json.dumps({
+                "error": "No handler result!"
+            }))
             continue
 
         if not handler_result.get("packet_id", None) == None:  # <= This is to avoid overriding intenionally set packet_ids
@@ -72,7 +82,7 @@ async def __run_correct_handler(payload: dict, packet_type: str):
     return await handler(payload)
 
 
-def register_handler(packet_type: str, handler: Handler):
+def register_handler(packet_type: str, handler: "Handler"):
     """Registers a callback handler for incoming packets
     
     Note:
