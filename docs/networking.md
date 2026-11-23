@@ -29,7 +29,7 @@ However, the function needs to be asyncronous (so, defined with `async def funct
 Then you just call the `register_handler()` function from the networking module.
 It takes two arguments: The first one is the packet type you would like to listen to. The second one is the handler we just discussed.
 
-> [!Note]
+> [!WARNING]
 > If a handler gets registered for a packet_type which already has a listener, it will **replace** the existing listener. (This might change, but I couldn't figure out how do deal with the return values so either suggest a way of implementing this or deal with it I guess)
 
 ### Sending (writing) Outgoing Packets
