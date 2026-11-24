@@ -1,54 +1,37 @@
-from machine import Pin, ADC, I2C
-import ssd1306
+import sounddevice as sd
+import numpy as np
 import time
 
-# 1. Set up the microphone on Pin 34
-mic = ADC(Pin(34))
-# Allow the pin to read the full 0V to 3.3V range
-mic.atten(ADC.ATTN_11DB)
+# Variable to share the volume between the microphone and the screen
+current_volume = 0
 
-# 2. Set up the OLED screen on Pins 21 (SDA) and 22 (SCL)
-i2c = I2C(0, scl=Pin(22), sda=Pin(21))
-# Create a screen object that is 128 pixels wide and 64 pixels tall
-oled = ssd1306.SSD1306_I2C(128, 64, i2c)
-
-while True:
-    # 3. Measure sound wave height by taking 50 quick readings
-    lowest = 4095
-    highest = 0
+# 1. Measure the microphone loudness in the background
+def check_sound(indata, frames, time_info, status):
+    global current_volume
     
-    for i in range(50):
-        val = mic.read()
-        if val > highest:
-            highest = val
-        if val < lowest:
-            lowest = val
+    # Calculate the true average loudness (a decimal between 0.0 and 1.0)
+    rms = np.sqrt(np.mean(indata**2))
+    
+    # Convert to a 0-100 scale (change 300 if your mic is too quiet or too loud)
+    volume = int(rms * 300)
+    
+    # Cap the volume at 100 maximum
+    current_volume = min(volume, 100)
+
+# 2. Start listening and update the bar smoothly
+print("Listening... Make some noise! (Press Ctrl+C to stop)")
+
+try:
+    with sd.InputStream(callback=check_sound):
+        while True:
+            # Create a 50-block horizontal bar
+            bar_length = current_volume // 2
+            bar = "█" * bar_length + "-" * (50 - bar_length)
             
-    # The loudness is the difference between the highest and lowest wave points
-    loudness = highest - lowest
-
-    # 4. Turn that raw reading into a simple volume score from 0 to 100
-    # (Change 2000 to a smaller number if your mic isn't sensitive enough)
-    volume = int((loudness * 100) / 2000)
-    
-    # Keep the volume number capped at 100 maximum
-    if volume > 100:
-        volume = 100
-
-    # 5. Update the OLED screen
-    oled.fill(0) # Clear the screen to black
-    
-    # Draw the text showing the volume from 0 to 100
-    oled.text("Volume: " + str(volume), 0, 10)
-    
-    # Draw the outer empty box for the volume bar (104 pixels wide, 16 pixels tall)
-    oled.rect(0, 35, 104, 16, 1)
-    
-    # Fill the inside of the bar based on the volume (0 to 100 pixels wide)
-    oled.fill_rect(2, 37, volume, 12, 1)
-    
-    # Push everything to the screen so we can see it
-    oled.show()
-    
-    # Wait a tiny fraction of a second before updating again
-    time.sleep(0.05)
+            # Print the volume and bar on the same line
+            print(f"\rVolume: {current_volume:3d}/100 |{bar}|", end="", flush=True)
+            
+            # Update the screen 20 times per second
+            time.sleep(0.05)
+except KeyboardInterrupt:
+    print("\nStopped.")
