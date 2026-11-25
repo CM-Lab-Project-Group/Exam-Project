@@ -1,2 +1,5 @@
 *.bin
 *.venv
+mypy.ini
+__pycache__/
+.idea
