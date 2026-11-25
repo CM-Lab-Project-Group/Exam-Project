@@ -18,12 +18,12 @@ video {
     background-color: #000;
     border-radius: 8px;
     aspect-ratio: 16/9;
-}
 
-.video-wrapper {
-    padding: 2rem;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #aaa;
 
     &.on {
-        background-color: red;
+        border-color: red;
     }
 }
