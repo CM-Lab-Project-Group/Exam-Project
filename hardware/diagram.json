@@ -1,6 +1,7 @@
 {
   "version": 1,
   "editor": "wokwi",
+  "author": "",
   "parts": [
     { "type": "wokwi-breadboard-mini", "id": "bb1", "top": 428.2, "left": 96, "attrs": {} },
     { "type": "wokwi-breadboard-mini", "id": "bb2", "top": 447.4, "left": 787.2, "attrs": {} },
