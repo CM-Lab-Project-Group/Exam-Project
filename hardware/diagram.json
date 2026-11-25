@@ -7,13 +7,6 @@
     {
       "type": "board-esp32-devkit-c-v4",
       "id": "esp1",
-      "top": 230.4,
-      "left": 393.6,
-      "attrs": { "env": "micropython-20231005-v1.21.0" }
-    },
-    {
-      "type": "board-esp32-devkit-c-v4",
-      "id": "esp2",
       "top": 381.6,
       "left": 372.04,
       "attrs": { "env": "micropython-20231005-v1.21.0" }
@@ -65,13 +58,13 @@
     }
   ],
   "connections": [
-    [ "sr1:DS", "esp2:18", "green", [ "v0" ] ],
-    [ "esp2:3V3", "bb1:17t.a", "red", [ "h0" ] ],
+    [ "sr1:DS", "esp1:18", "green", [ "v0" ] ],
+    [ "esp1:3V3", "bb1:17t.a", "red", [ "h0" ] ],
     [ "bb1:17t.b", "sr1:VCC", "red", [ "v0", "h86.4", "v163.2", "h182.4", "v-105.6", "h28.8" ] ],
     [ "sr1:GND", "bb1:17b.j", "black", [ "v124.8", "h-326.4", "v-124.8" ] ],
-    [ "esp2:GND.1", "bb1:17b.f", "black", [ "h-67.05", "v-28.8" ] ],
-    [ "sr1:SHCP", "esp2:19", "green", [ "v0" ] ],
-    [ "sr1:STCP", "esp2:5", "green", [ "v0" ] ],
+    [ "esp1:GND.1", "bb1:17b.f", "black", [ "h-67.05", "v-28.8" ] ],
+    [ "sr1:SHCP", "esp1:19", "green", [ "v0" ] ],
+    [ "sr1:STCP", "esp1:5", "green", [ "v0" ] ],
     [ "sr1:Q0", "bargraph1:A1", "green", [ "v0" ] ],
     [ "sr1:Q1", "bargraph1:A2", "green", [ "v28.8", "h86.4", "v-9.6" ] ],
     [ "bargraph1:A3", "sr1:Q2", "green", [ "h-28.8", "v134.4", "h-86.4" ] ],
@@ -92,17 +85,17 @@
     [ "bb2:1t.e", "bb2:2t.e", "green", [ "v0" ] ],
     [ "bb2:2t.d", "bb2:3t.d", "green", [ "v0" ] ],
     [ "pot1:GND", "bb1:17b.h", "black", [ "v28.8", "h-268.8", "v-288" ] ],
-    [ "pot1:SIG", "esp2:14", "green", [ "v38.4", "h-230.8", "v-249.6" ] ],
-    [ "pot1:VCC", "esp2:27", "red", [ "v48", "h-231.2", "v-326.4" ] ],
+    [ "pot1:SIG", "esp1:14", "green", [ "v38.4", "h-230.8", "v-249.6" ] ],
+    [ "pot1:VCC", "esp1:27", "red", [ "v48", "h-231.2", "v-326.4" ] ],
     [ "bz1:1", "bb1:16b.f", "black", [ "v48", "h-115.2", "v192" ] ],
     [ "bb1:17b.g", "bb1:16b.g", "green", [ "v0" ] ],
     [ "led1:A", "r1:1", "green", [ "v0" ] ],
-    [ "esp2:13", "r1:2", "green", [ "h-19.05" ] ],
-    [ "esp2:25", "bz1:2", "red", [ "v-9.6", "h-47.85" ] ],
+    [ "esp1:13", "r1:2", "green", [ "h-19.05" ] ],
+    [ "esp1:25", "bz1:2", "red", [ "v-9.6", "h-47.85" ] ],
     [ "bb2:3t.e", "r2:2", "green", [ "v124.8" ] ],
     [ "r2:1", "bb1:16b.j", "black", [ "v48", "h-489.6" ] ],
     [ "btn1:2.l", "bb1:16b.i", "black", [ "h-38.4", "v-86.2", "h-422.4", "v-105.6" ] ],
-    [ "btn1:1.r", "esp2:17", "green", [ "v0", "h38.6", "v-182.4", "h-268.8", "v-67.2" ] ]
+    [ "btn1:1.r", "esp1:17", "green", [ "v0", "h38.6", "v-182.4", "h-268.8", "v-67.2" ] ]
   ],
   "dependencies": {}
 }
