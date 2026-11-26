@@ -1,282 +1,189 @@
+/** @type {HTMLImageElement} */
+const feedImage = document.getElementById("cameraPlayback");
 
 /** @type {HTMLVideoElement} */
-const videoElement = document.getElementById("cameraPlayback");
+const playbackVideo = document.getElementById("recordedPlayback");
+
 /** @type {HTMLButtonElement} */
-const cameraBtn = document.getElementById("recording-button");
-/** @type {HTMLInputElement} */
-const recordingCheckbox = document.getElementById("record-checkbox");
+const cameraBtn = document.getElementById("camera-button");
+/** @type {HTMLButtonElement} */
+const recordBtn = document.getElementById("record-button");
 
-const sourceVideo = document.createElement("video");
-sourceVideo.muted = true;
-sourceVideo.playsInline = true;
+/** @type {HTMLUListElement} */
+const recordingsList = document.getElementById("recordings-list");
 
-const canvas = document.createElement("canvas");
-const ctx = canvas.getContext("2d");
+const STATUS_POLL_INTERVAL_MS = 2500;
 
-/** @type {MediaStream | undefined} */
-let cameraStream = undefined;
-/** @type {MediaStream | undefined} */
-let compositeStream = undefined;
-/** @type {MediaRecorder | undefined} */
-let mediaRecorder = undefined;
-/** @type {number | undefined} */
-let cameraTimeoutId = undefined;
-/** @type {number | undefined} */
-let renderLoopId = undefined;
+let isToggling = false;
+let lastKnownRecording = false;
 
-let recBlink = false;
-/** @type {number | undefined} */
-let recBlinkIntervalId = undefined;
+cameraBtn.turnOn = () => {
+    cameraBtn.textContent = "Stop Camera";
+    cameraBtn.dataset["active"] = "1";
+}
 
-/** @type {Promise | undefined} */
-let uploadChain = undefined;
+cameraBtn.turnOff = () => {
+    cameraBtn.textContent = "Start Camera";
+    cameraBtn.dataset["active"] = "0";
+}
 
-const CHUNK_INTERVAL_MS = 1000;
-const TARGET_FPS = 30;
+cameraBtn.isActive = () => cameraBtn.dataset["active"] === "1";
+
+recordBtn.turnOn = () => {
+    recordBtn.textContent = "Stop Recording";
+    recordBtn.dataset["active"] = "1";
+}
+
+recordBtn.turnOff = () => {
+    recordBtn.textContent = "Start Recording";
+    recordBtn.dataset["active"] = "0";
+}
+
+recordBtn.isActive = () => recordBtn.dataset["active"] === "1";
+
+
+/** @param {boolean} disabled */
+function setFeedControlsDisabledState(disabled) {
+    cameraBtn.disabled = disabled;
+    recordBtn.disabled = disabled;
+}
 
 /**
- * Draws information onto a canvas
- * @param {CanvasRenderingContext2D} context 
- * @param {number} width 
- * @param {number} height 
+ * 
+ * @param {string} url 
+ * @returns {Promise<{ camera_on: boolean, recording: boolean }>}
  */
-function drawOverlay(context, width, height) {
-    const fontSize = Math.max(12, Math.round(height * 0.04));
-    const pad = Math.round(fontSize * 0.45);
-    const margin = Math.round(height * 0.03);
-
-    const timestamp = new Date().toLocaleTimeString();
-    context.font = `bold ${fontSize}px monospace`;
-    context.textBaseline = "middle";
-
-    const textWidth = context.measureText(timestamp).width;
-    const boxWidth = textWidth + pad * 2;
-    const boxHeight = fontSize + pad * 1.4;
-    const boxX = margin;
-    const boxY = height - margin - boxHeight;
-
-    context.fillStyle = "rgba(0, 0, 0, .55)";
-    context.fillRect(boxX, boxY, boxWidth, boxHeight);
-
-
-    context.fillStyle = "#fff";
-    context.fillText(timestamp, boxX + pad, boxY + boxHeight / 2);
-
-    if (mediaRecorder && mediaRecorder.state === "recording" && recBlink) {
-        const badgeFontSize = Math.round(fontSize * 0.05);
-        const dotRadius = Math.round(badgeFontSize * 0.4);
-        context.font = `bold ${badgeFontSize}px sans-serif`;
-
-        const labelWidth = context.measureText("REC").width;
-        const textX = width - margin - labelWidth;
-        const centerY = margin + badgeFontSize / 2;
-
-        context.fillStyle = "#ef4444";
-        context.beginPath();
-        context.arc(textX - dotRadius * 1.8, centerY, dotRadius, 0, Math.PI * 2);
-        context.fill();
-
-        context.fillStyle = "#ffffff";
-        context.fillText("REC", textX, centerY);
+async function postJson(url) {
+    const res = await fetch(url, { method: "POST", cache: "no-cache" });
+    const data = await res.json();
+    if (!res.ok) {
+        throw new Error(data.error || `Request failed (${res.status})`);
     }
+    return data;
 }
 
-function startRenderLoop() {
-    if (!ctx) return;
-
-    const renderFrame = () => {
-        if (sourceVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-            ctx.drawImage(sourceVideo, 0, 0, canvas.width, canvas.height);
-            drawOverlay(ctx, canvas.width, canvas.height);
-        }
-        renderLoopId = requestAnimationFrame(renderFrame);
-    };
-
-    recBlinkIntervalId = setInterval(() => recBlink = !recBlink, 1000);
-    renderLoopId = requestAnimationFrame(renderFrame);
+function attachFeedStream() {
+    if (feedImage.src && feedImage.src.includes("/video_feed")) return;
+    feedImage.src = `/video_feed?t=${Date.now()}`;
 }
 
-function stopRenderLoop() {
-    if (renderLoopId === undefined) return;
-
-    clearInterval(recBlinkIntervalId);
-    recBlinkIntervalId = undefined;
-
-    recBlink = false;
-
-    cancelAnimationFrame(renderLoopId);
-    renderLoopId = undefined;
+function cacheBuster() {
+    if (feedImage.src && feedImage.src.includes("/video_feed")) return;
+    feedImage.src = `/video_feed?t=${Date.now()}`;
 }
 
-async function startCameraStream() {
-    if (compositeStream) return;
+/** @param {boolean} isCameraOn */
+function setCameraState(isCameraOn) {
+    const parentClassList = feedImage.parentElement?.classList;
 
-    cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    sourceVideo.srcObject = cameraStream;
-    await sourceVideo.play();
-
-    canvas.width = sourceVideo.videoWidth || 640;
-    canvas.height = sourceVideo.videoHeight || 480;
-    
-    startRenderLoop();
-    compositeStream = canvas.captureStream(TARGET_FPS);
-}
-
-function updateStreamDisplay() {
-    const isActive = Boolean(cameraStream && cameraStream.active);
-    videoElement.srcObject = isActive ? compositeStream : null;
-    
-    const parentClassList = videoElement.parentElement.classList;
-    if (isActive) {
-        parentClassList.add("on");
+    if (isCameraOn) {
+        attachFeedStream();
+        parentClassList?.add("on");
+        cameraBtn.turnOn();
     } else {
-        parentClassList.remove("on");
+        feedImage.removeAttribute("src");
+        parentClassList?.remove("on");
+        cameraBtn.turnOff();
     }
-
 }
 
-/** @param {MediaStream} mediaStream  */
-function stopAllMediaTracks(mediaStream) {
-    mediaStream.getTracks().forEach(track => track.stop());
-}
-
-
-function stopCameraStream() {
-    stopRenderLoop();
-
-    if (compositeStream) {
-        stopAllMediaTracks(compositeStream);
-        compositeStream = undefined;
+/** @param {boolean} isRecording */
+function setRecordingState(isRecording) {
+    if (isRecording) {
+        recordBtn.turnOn();
+    } else {
+        recordBtn.turnOff();
     }
+}
 
-    if (cameraStream) {
-        stopAllMediaTracks(cameraStream);
-        cameraStream = undefined;
+/** @param {{ camera_on: boolean, recording: boolean }} state */
+async function applyServerState(state) {
+    const finishedRecording = lastKnownRecording && !state.recording;
+    lastKnownRecording = state.recording;
+
+    setCameraState(state.camera_on);
+    setRecordingState(state.recording);
+
+    if (finishedRecording) {
+        await refreshRecordings();
     }
-
-    sourceVideo.srcObject = null;
 }
 
+async function syncStatus() {
+    if (isToggling) return;
 
-async function startFeed() {
-    await startCameraStream();
-    updateStreamDisplay();
+    try {
+        const res = await fetch("/api/status", { cache: "no-cache" });
+        if (!res.ok) return;
+        await applyServerState(await res.json());
+    } catch (e) {
+        console.error("Status sync failed:", e);
+    }
 }
 
-function stopCamera() {
-    stopCameraStream();
-    updateStreamDisplay();
-}
+async function refreshRecordings() {
+    const res = await fetch("/api/recordings", { cache: "no-cache" });
+    if (!res.ok) return;
 
+    /** @type {string[]} */
+    const files = await res.json();
+    recordingsList.innerHTML = "";
 
-/**
- * @param {BlobEvent} ev 
-*/
-async function mediaRecorderDataAvailable(ev) {
-    const blob = ev.data;
-    if (!blob || blob.size == 0) return;
-
-    uploadChain = uploadChain.then(async () => {
-        const res = await fetch("/upload/chunk", {
-            method: "POST",
-            body: blob,
-            cache: "no-cache",
+    for (const filename of files) {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = `> ${filename}`;
+        btn.addEventListener("click", () => {
+            playbackVideo.src = `/stream/${encodeURIComponent(filename)}`;
+            playbackVideo.play();
         });
-        if (!res.ok) {
-            throw new Error(`Chunk upload failed with status code ${res.status}`);
-        }
-    })
-
-}
-
-/** @returns {Promise<boolean>} */
-async function requestUploadStart() {
-    return (await fetch("/upload/start", { method: "POST", cache: "no-cache" })).ok;
-}
-
-async function startRecording() {
-    await startFeed();
-
-    if (!compositeStream) return;
-    if (!cameraStream) return;
-
-    if (!await requestUploadStart()) {
-        throw new Error("Upload has been denied");
+        li.appendChild(btn);
+        recordingsList.appendChild(li);
     }
-
-
-    mediaRecorder = new MediaRecorder(compositeStream, { mimeType: "video/webm" });
-
-    uploadChain = Promise.resolve();
-    mediaRecorder.addEventListener("dataavailable", mediaRecorderDataAvailable);
-    mediaRecorder.start(CHUNK_INTERVAL_MS);
 }
 
-async function stopRecording() {
-    if (!mediaRecorder || mediaRecorder.state === "inactive") return;
-    
-    const recorder = mediaRecorder;
-    mediaRecorder = undefined;
-    
-    await stopRecorder(recorder);
-    recorder.removeEventListener("dataavailable", mediaRecorderDataAvailable);
-    await uploadChain;
-    uploadChain = undefined;
+async function sendToggleRequest(endpoint) {
+    isToggling = true;
+    setFeedControlsDisabledState(true);
 
-    stopCamera();
-}
-
-/**
- * @param {MediaRecorder} recorder 
- */
-function stopRecorder(recorder) {
-    return new Promise((resolve, reject) => {
-        recorder.addEventListener("stop", resolve, { once: true });
-        recorder.addEventListener("error", reject, { once: true });
-        recorder.stop();
-    });
-}
-
-/** @param {boolean} recordingState */
-function setRecordingState(recordingState) {
-    cameraBtn.textContent = (recordingState ? "Stop" : "Start") + " Recording";
-    cameraBtn.dataset["recording"] = recordingState ? "1" : "0";
+    try {
+        const state = await postJson(endpoint);
+        await applyServerState(state);
+    } catch (e) {
+        console.error("Control request error:", e);
+        isToggling = false;
+        await syncStatus();
+    } finally {
+        isToggling = false;
+        setFeedControlsDisabledState(false);
+    }
 }
 
 async function onCameraToggleButton() {
-    const isCapturing = cameraBtn.dataset["recording"] === "1";
-    cameraBtn.disabled = true;
-    console.log("Recording is " + (isCapturing ? "active" : "inactive"));
-    
-    try {
-        const changePromise = isCapturing ? stopRecording() : startRecording();
-        await changePromise;
-        setRecordingState(!isCapturing);
-    } catch (err) {
-        console.error("Recording error:", err);
-        setRecordingState(false);
-    } finally {
-        cameraBtn.disabled = false;
-    }
+    const endPoint = "/api/camera/" + (cameraBtn.isActive() ? "stop" : "start");
+    await sendToggleRequest(endPoint);
 }
 
-async function onCheckboxChangeRequest() {
-    
+async function onRecordToggleButton() {
+    const endPoint = "/api/record/" + (recordBtn.isActive() ? "stop" : "start");
+    await sendToggleRequest(endPoint);
 }
 
-function main() {
-    if (!MediaRecorder.isTypeSupported("video/webm")) {
-        console.error("MediaRecorder is incapable of recording video/webm");
-        return;
+async function main() {
+    cameraBtn.addEventListener("click", async () => await onCameraToggleButton());
+    recordBtn.addEventListener("click", async () => await onRecordToggleButton());
+
+    const res = await fetch("/api/status", { cache: "no-cache" });
+    if (res.ok) {
+        applyServerState(await res.json());
     }
 
-    if (!cameraBtn.dataset["recording"]) {
-        cameraBtn.dataset["recording"] = "0";
-    }
+    await syncStatus();
+    await refreshRecordings();
+    setFeedControlsDisabledState(false);
 
-    cameraBtn.addEventListener("click", onCameraToggleButton);
-    recordingCheckbox.addEventListener("change", onCheckboxChangeRequest);
+    window.setInterval(syncStatus, STATUS_POLL_INTERVAL_MS);
 }
-
 
 main();

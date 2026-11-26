@@ -12,14 +12,19 @@
 <body>
     <main>
         <div id="recording-box">
+            <h2>Live Feeed</h2>
             <div class="video-wrapper">
-                <video id="cameraPlayback" autoplay muted playsinline></video>
+                <img id="cameraPlayback" alt="Live server camera feed" />
             </div>
-            <label>
-                Record
-                <input type="checkbox" id="record-checkbox" />
-            </label>
-            <button id="recording-button">Start recording</button>
+            <div class="controls">
+                <button id="camera-button" type="button">Start Camera</button>
+                <button id="record-button" type="button">Start Recording</button>
+            </div>
+        </div>
+        <div>
+            <h2>Playback</h2>
+            <video id="recordedPlayback" controls playsinline></video>
+            <ul id="recordings-list"></ul>
         </div>
     </main>
 </body>
