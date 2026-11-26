@@ -2,3 +2,4 @@ pyserial
 Flask
 flask-sock
 opencv-python-headless
+sounddevice
