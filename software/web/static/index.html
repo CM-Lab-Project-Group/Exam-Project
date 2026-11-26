@@ -15,16 +15,22 @@
             <h2>Live Feeed</h2>
             <div class="video-wrapper">
                 <img id="cameraPlayback" alt="Live server camera feed" />
+                <meter id="volume-meter" min="0" max="100" value="0">
             </div>
             <div class="controls">
                 <button id="camera-button" type="button">Start Camera</button>
                 <button id="record-button" type="button">Start Recording</button>
             </div>
+            <div class="audio-controls">
+                <button id="audio-save-button" type="button">Save audio</button>
+            </div>
         </div>
         <div>
             <h2>Playback</h2>
             <video id="recordedPlayback" controls playsinline></video>
+            <audio id="audioPlayback"></audio>
             <ul id="recordings-list"></ul>
+            <ul id="audio-list"></ul>
         </div>
     </main>
 </body>
