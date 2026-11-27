@@ -11,9 +11,9 @@ def setup():
     _led = Pin(LED_PIN, Pin.OUT, value=0)
 
 
-def start_recording():
+def on():
     _led.on()
 
 
-def stop_recording():
+def off():
     _led.off()

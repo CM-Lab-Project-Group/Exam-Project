@@ -9,10 +9,10 @@ def main():
     camera_indicator.setup()
     while True:
         print("Recording started")
-        camera_indicator.start_recording()
+        camera_indicator.on()
         time.sleep(3)
         print("Recording stopped")
-        camera_indicator.stop_recording()
+        camera_indicator.off()
         time.sleep(3)
 
 
