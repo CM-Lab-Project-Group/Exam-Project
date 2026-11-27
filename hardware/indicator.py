@@ -1,9 +1,9 @@
 from machine import Pin
 
 # Pins connected to the 74HC595 shift register
-data  = Pin(23, Pin.OUT)  # DS
+data  = Pin(5, Pin.OUT)  # DS
 clock = Pin(18, Pin.OUT)  # SHCP
-latch = Pin(5, Pin.OUT)   # STCP
+latch = Pin(19, Pin.OUT)   # STCP
 
 def update_leds(level):
     """Light up `level` LEDs (0 to 8) on the 74HC595."""
