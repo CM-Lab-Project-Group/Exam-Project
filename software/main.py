@@ -1,49 +1,22 @@
-import serial
 import asyncio
-import json
+from serial_networking import poll_serial, write_serial, register_handler
 
-def handle_receive(s: serial.Serial, text: str):
-    try:
-        payload = json.loads(text)
-    except ValueError as e:
-        return
-    print(payload)
-
-def handle_line(s: serial.Serial, line: bytes):
-    if not line: return
-    text = line.decode().strip()
-    if not text: return
-    handle_receive(s, text)
-
-
-async def read_serial(s: serial.Serial):
-    while True:
-        line = await asyncio.to_thread(s.readline)
-        handle_line(s, line)
-        await asyncio.sleep(.01)
+async def serial_polling_async_loop(loop: asyncio.AbstractEventLoop):
+    while True: await loop.run_in_executor(None, poll_serial)
 
 
 async def main():
-    with serial.serial_for_url("rfc2217://localhost:4000") as s:
-        reader_task = asyncio.create_task(read_serial(s))
+    loop = asyncio.get_running_loop()
 
-        while True:
-            msg = await asyncio.to_thread(input)
+    asyncio.create_task(serial_polling_async_loop(loop))
 
-            if msg.lower() == ":exit":
-                break
+    payload = {
+        "packet_type": "heartbeat"
+    }
 
-            data = json.dumps({
-                "packet_id": 5,
-                "packet_type": 1,
-                "msg": msg
-            })
+    register_handler("ack", lambda b: print(b))
 
-            data = (data + "\n").encode()
-            s.write(data)
-            print(data)
-
-        reader_task.cancel()
+    write_serial(payload)
 
 if __name__ == "__main__":
-    asyncio.run(main=main())
+    asyncio.run(main())
