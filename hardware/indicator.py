@@ -6,19 +6,26 @@ clock = Pin(18, Pin.OUT)  # SHCP
 latch = Pin(5, Pin.OUT)   # STCP
 
 def update_leds(level):
-    latch.value(0)          # Pause the LEDs while we send new data
+    """Light up `level` LEDs (0 to 8) on the 74HC595."""
+    level = max(0, min(8, int(level)))
+    latch.value(0)
 
     for i in range(8):
         clock.value(0)
         if i < level:
-            data.value(1)   # LED ON
+            data.value(1)
         else:
-            data.value(0)   # LED OFF
-        clock.value(1)      # Push this 1 or 0 into the chip
+            data.value(0)
+        clock.value(1)
 
-    latch.value(1)          # Show all 8 LEDs at once
+    latch.value(1)
 
-while True:
-    text = input()          # Wait for a number (0-8) from the laptop
-    if text.isdigit():
-        update_leds(int(text))
+def update_from_rms(rms):
+    """Convert RMS volume (0 to 100) to 0-8 LEDs."""
+    level = round((rms / 100) * 8)
+    update_leds(level)
+
+def update_from_dbfs(dbfs):
+    """Convert dBFS volume (-60 to 0) to 0-8 LEDs."""
+    level = round(((dbfs + 60) / 60) * 8)
+    update_leds(level)
