@@ -422,17 +422,6 @@ PC  -> ESP : {"packet_type": 8, "packet_id": 0}                        (ignored)
 
 ---
 
-## 13. Changes required in the existing code
-
-- The PC client currently sends a fixed `packet_id` of `5` and `packet_type` `1` with a `msg` field. It should take its ids from the received ACKs (starting at `0`) and use the types defined above.
-- The ESP currently answers **every** valid line with `{"packet_type": 0, "packet_id": <same id>}`. Update it to reply with **id + 1**, to answer `HEARTBEAT` with `HEARTBEAT_RESPONSE`, and to track the id it expects next (section 6).
-- The ESP currently sends `{"error": "..."}` objects with no `packet_type`. Replace them with `ERROR` packets (type `7`) and the codes in section 8.1.
-- The PC needs a send queue so only one packet is in flight at a time, a 500 ms retry timer, a lockdown state, and an emergency state.
-- The ESP needs a lockdown state (with its safe state) and an emergency state.
-- The ESP `heartbeat()` task currently does nothing. Heartbeats are now sent by the PC, so the ESP side only needs to respond.
-
----
-
 ## 14. Constants
 
 Define these once, in one file shared by the PC and the ESP, so the numbers exist in a single place. Each category is a plain class (MicroPython has no `enum` module). Code uses them as `PacketType.EVENT`, `Timing.MAX_RETRIES`, and so on.
@@ -501,13 +490,3 @@ def name_of(cls, value):
 ```
 
 ---
-
-## 15. Open questions for the team
-
-- Is `SOUND_THRESHOLD_UPDATE` really PC -> ESP? (assumed here)
-- Only one packet may be in flight at a time. Is the resulting throughput enough, for example when several events happen quickly?
-- Lockdown after 15 s of silence is strict: a short glitch (the simulation paused, a USB blip) locks the system until it is reset. Should the timeout be longer?
-- If the PC is started while the ESP is not running yet, the PC waits and never locks (section 9.1). Is that acceptable?
-- Should the ESP sound the buzzer in the emergency state, or must everything stay silent?
-- The emergency state ends with any restart. Should the ESP store it in permanent memory so it survives a reboot?
-- Should the keys `decibles` and `sound_tresh` be renamed to `decibels` and `sound_thresh`? They are kept as they are now for compatibility.
